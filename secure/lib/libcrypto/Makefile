@@ -19,6 +19,12 @@ PCFILES=	libcrypto.pc
 .include "Makefile.man"
 .include "Makefile.inc"
 
+.include <bsd.compiler.mk>
+
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 70000
+CFLAGS+= -Wno-atomic-alignment
+.endif
+
 # $UTIL_COMMON
 SRCS=	cryptlib.c params.c params_from_text.c bsearch.c ex_data.c o_str.c
 SRCS+=	threads_pthread.c threads_win.c threads_none.c initthread.c
