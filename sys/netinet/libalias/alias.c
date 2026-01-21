@@ -313,12 +313,13 @@ IcmpAliasIn1(struct libalias *la, struct ip *pip)
 
 		/* Put original address back into IP header */
 		{
-			struct in_addr original_address;
-
-			original_address = GetOriginalAddress(lnk);
-			DifferentialChecksum(&pip->ip_sum,
-			    &original_address, &pip->ip_dst, 2);
+			struct in_addr original_address = GetOriginalAddress(lnk);
+			u_short tmp_ip_sum = pip->ip_sum;
+			struct in_addr tmp_ip_dst = pip->ip_dst;
+			DifferentialChecksum(&tmp_ip_sum,
+			    &original_address, &tmp_ip_dst, 2);
 			pip->ip_dst = original_address;
+			pip->ip_sum = tmp_ip_sum;
 		}
 	}
 	return (ret);
@@ -391,9 +392,12 @@ IcmpAliasIn2(struct libalias *la, struct ip *pip)
 			ADJUST_CHECKSUM(accumulate2, ic->icmp_cksum);
 
 			/* Un-alias address in IP header */
-			DifferentialChecksum(&pip->ip_sum,
-			    &original_address, &pip->ip_dst, 2);
+			u_short tmp_ip_sum = pip->ip_sum;
+			struct in_addr tmp_ip_dst = pip->ip_dst;
+			DifferentialChecksum(&tmp_ip_sum,
+			    &original_address, &tmp_ip_dst, 2);
 			pip->ip_dst = original_address;
+			pip->ip_sum = tmp_ip_sum;
 
 			/* Un-alias address and port number of
 			 * original IP packet fragment contained
@@ -420,9 +424,12 @@ IcmpAliasIn2(struct libalias *la, struct ip *pip)
 			ADJUST_CHECKSUM(accumulate2, ic->icmp_cksum);
 
 			/* Un-alias address in IP header */
-			DifferentialChecksum(&pip->ip_sum,
-			    &original_address, &pip->ip_dst, 2);
+			u_short tmp_ip_sum = pip->ip_sum;
+			struct in_addr tmp_ip_dst = pip->ip_dst;
+			DifferentialChecksum(&tmp_ip_sum,
+			    &original_address, &tmp_ip_dst, 2);
 			pip->ip_dst = original_address;
+			pip->ip_sum = tmp_ip_sum;
 
 			/* Un-alias address of original IP packet and
 			 * sequence number of embedded ICMP datagram */
@@ -511,12 +518,14 @@ IcmpAliasOut1(struct libalias *la, struct ip *pip, int create)
 
 		/* Change source address */
 		{
-			struct in_addr alias_address;
+			struct in_addr alias_address = GetAliasAddress(lnk);
 
-			alias_address = GetAliasAddress(lnk);
-			DifferentialChecksum(&pip->ip_sum,
-			    &alias_address, &pip->ip_src, 2);
+			u_short tmp_ip_sum = pip->ip_sum;
+			struct in_addr tmp_ip_src = pip->ip_src;
+			DifferentialChecksum(&tmp_ip_sum,
+			    &alias_address, &tmp_ip_src, 2);
 			pip->ip_src = alias_address;
+			pip->ip_sum = tmp_ip_sum;
 		}
 	}
 	return (ret);
@@ -589,9 +598,12 @@ IcmpAliasOut2(struct libalias *la, struct ip *pip)
 			 * the original TCP/UDP packet was destined for.
 			 */
 			if (pip->ip_src.s_addr == ip->ip_dst.s_addr) {
-				DifferentialChecksum(&pip->ip_sum,
-				    &alias_address, &pip->ip_src, 2);
+				u_short tmp_ip_sum = pip->ip_sum;
+				struct in_addr tmp_ip_src = pip->ip_src;
+				DifferentialChecksum(&tmp_ip_sum,
+			    	&alias_address, &tmp_ip_src, 2);
 				pip->ip_src = alias_address;
+				pip->ip_sum = tmp_ip_sum;
 			}
 			/* Alias address and port number of original IP packet
 			 * fragment contained in ICMP data section */
@@ -617,9 +629,12 @@ IcmpAliasOut2(struct libalias *la, struct ip *pip)
 			 * the original ICMP message was destined for.
 			 */
 			if (pip->ip_src.s_addr == ip->ip_dst.s_addr) {
-				DifferentialChecksum(&pip->ip_sum,
-				    &alias_address, &pip->ip_src, 2);
+				u_short tmp_ip_sum = pip->ip_sum;
+				struct in_addr tmp_ip_src = pip->ip_src;
+				DifferentialChecksum(&tmp_ip_sum,
+				    &alias_address, &tmp_ip_src, 2);
 				pip->ip_src = alias_address;
+				pip->ip_sum = tmp_ip_sum;
 			}
 			/* Alias address of original IP packet and
 			 * sequence number of embedded ICMP datagram */
@@ -834,15 +849,21 @@ UdpAliasIn(struct libalias *la, struct ip *pip)
 			ud->uh_sport = proxy_port;
 
 		if (proxy_address.s_addr != 0) {
-			DifferentialChecksum(&pip->ip_sum,
-			    &proxy_address, &pip->ip_src, 2);
+			u_short tmp_ip_sum = pip->ip_sum;
+			struct in_addr tmp_ip_src = pip->ip_src;
+			DifferentialChecksum(&tmp_ip_sum,
+			    &proxy_address, &tmp_ip_src, 2);
 			pip->ip_src = proxy_address;
+			pip->ip_sum = tmp_ip_sum;
 		}
 
 		/* Restore original IP address */
-		DifferentialChecksum(&pip->ip_sum,
-		    &original_address, &pip->ip_dst, 2);
+		u_short tmp_ip_sum = pip->ip_sum;
+		struct in_addr tmp_ip_dst = pip->ip_dst;
+		DifferentialChecksum(&tmp_ip_sum,
+		    &original_address, &tmp_ip_dst, 2);
 		pip->ip_dst = original_address;
+		pip->ip_sum = tmp_ip_sum;
 
 		return (PKT_ALIAS_OK);
 	}
@@ -943,9 +964,12 @@ UdpAliasOut(struct libalias *la, struct ip *pip, int maxpacketsize, int create)
 		ud->uh_sport = alias_port;
 
 		/* Change source address */
-		DifferentialChecksum(&pip->ip_sum,
-		    &alias_address, &pip->ip_src, 2);
+		u_short tmp_ip_sum = pip->ip_sum;
+		struct in_addr tmp_ip_src = pip->ip_src;
+		DifferentialChecksum(&tmp_ip_sum,
+		    &alias_address, &tmp_ip_src, 2);
 		pip->ip_src = alias_address;
+		pip->ip_sum = tmp_ip_sum;
 
 		return (PKT_ALIAS_OK);
 	}
@@ -1319,9 +1343,12 @@ LibAliasFragmentIn(struct libalias *la,
 	pip = (struct ip *)ptr;
 	fpip = (struct ip *)ptr_fragment;
 
-	DifferentialChecksum(&fpip->ip_sum,
-	    &pip->ip_dst, &fpip->ip_dst, 2);
+	u_short tmp_ip_sum = fpip->ip_sum;
+	struct in_addr tmp_ip_dst = fpip->ip_dst;
+	DifferentialChecksum(&tmp_ip_sum,
+	    &pip->ip_dst, &tmp_ip_dst, 2);
 	fpip->ip_dst = pip->ip_dst;
+	fpip->ip_sum = tmp_ip_sum;
 	LIBALIAS_UNLOCK(la);
 }
 
@@ -1367,8 +1394,10 @@ LibAliasInLocked(struct libalias *la, struct ip *pip, int maxpacketsize)
 	}
 
 	if (FRAG_NO_HDR(pip)) {
+		u_short tmp_ip_sum = pip->ip_sum;
 		iresult = FragmentIn(la, pip->ip_src, pip, pip->ip_id,
-		    &pip->ip_sum);
+		    &tmp_ip_sum);
+		pip->ip_sum = tmp_ip_sum;
 		goto getout;
 	}
 
@@ -1402,17 +1431,23 @@ LibAliasInLocked(struct libalias *la, struct ip *pip, int maxpacketsize)
 
 		/* Walk out chain. */
 		error = find_handler(IN, IP, la, pip, &ad);
-		if (error == 0)
+		if (error == 0) {
 			iresult = PKT_ALIAS_OK;
-		else
+		} else {
+			u_short tmp_ip_sum = pip->ip_sum;
 			iresult = ProtoAliasIn(la, pip->ip_src,
-			    pip, pip->ip_p, &pip->ip_sum);
+			    pip, pip->ip_p, &tmp_ip_sum);
+			pip->ip_sum = tmp_ip_sum;
+		}
 		break;
 	}
-	default:
+	default: {
+		u_short tmp_ip_sum = pip->ip_sum;
 		iresult = ProtoAliasIn(la, pip->ip_src, pip,
-		    pip->ip_p, &pip->ip_sum);
+		    pip->ip_p, &tmp_ip_sum);
+		pip->ip_sum = tmp_ip_sum;
 		break;
+		}
 	}
 
 	if (MF_ISSET(pip)) {
@@ -1522,7 +1557,9 @@ LibAliasOutLocked(struct libalias *la,
 	}
 
 	if (FRAG_NO_HDR(pip)) {
-		iresult = FragmentOut(la, pip, &pip->ip_sum);
+		u_short tmp_ip_sum = pip->ip_sum;
+		iresult = FragmentOut(la, pip, &tmp_ip_sum);
+		pip->ip_sum = tmp_ip_sum;
 		goto getout_restore;
 	}
 
@@ -1555,17 +1592,23 @@ LibAliasOutLocked(struct libalias *la,
 		};
 		/* Walk out chain. */
 		error = find_handler(OUT, IP, la, pip, &ad);
-		if (error == 0)
+		if (error == 0) {
 			iresult = PKT_ALIAS_OK;
-		else
+		} else {
+			u_short tmp_ip_sum = pip->ip_sum;
 			iresult = ProtoAliasOut(la, pip,
-			    pip->ip_dst, pip->ip_p, &pip->ip_sum, create);
+			    pip->ip_dst, pip->ip_p, &tmp_ip_sum, create);
+			pip->ip_sum = tmp_ip_sum;
+		}
 		break;
 		}
-	default:
+	default: {
+		u_short tmp_ip_sum = pip->ip_sum;
 		iresult = ProtoAliasOut(la, pip,
-		    pip->ip_dst, pip->ip_p, &pip->ip_sum, create);
+		    pip->ip_dst, pip->ip_p, &tmp_ip_sum, create);
+		pip->ip_sum = tmp_ip_sum;
 		break;
+		}
 	}
 
 getout_restore:
@@ -1645,8 +1688,10 @@ LibAliasUnaliasOut(struct libalias *la,
 			}
 
 			/* Adjust IP checksum */
-			DifferentialChecksum(&pip->ip_sum,
-			    &original_address, &pip->ip_src, 2);
+			u_short tmp_ip_sum = pip->ip_sum;
+			struct in_addr tmp_ip_src = pip->ip_src;
+			DifferentialChecksum(&tmp_ip_sum,
+			    &original_address, &tmp_ip_src, 2);
 
 			/* Un-alias source address and port number */
 			pip->ip_src = original_address;
@@ -1672,8 +1717,11 @@ LibAliasUnaliasOut(struct libalias *la,
 			ADJUST_CHECKSUM(accumulate, ic->icmp_cksum);
 
 			/* Adjust IP checksum */
-			DifferentialChecksum(&pip->ip_sum,
-			    &original_address, &pip->ip_src, 2);
+			u_short tmp_ip_sum = pip->ip_sum;
+			struct in_addr tmp_ip_src = pip->ip_src;
+			DifferentialChecksum(&tmp_ip_sum,
+			    &original_address, &tmp_ip_src, 2);
+			pip->ip_sum = tmp_ip_sum;
 
 			/* Un-alias source address and port number */
 			pip->ip_src = original_address;
