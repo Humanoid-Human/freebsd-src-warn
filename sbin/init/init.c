@@ -118,7 +118,7 @@ static state_func_t death_single(void);
 static state_func_t reroot(void);
 static state_func_t reroot_phase_two(void);
 
-static state_func_t run_script(const char *);
+static state_t run_script(const char *);
 
 static enum { AUTOBOOT, FASTBOOT } runcom_mode = AUTOBOOT;
 
@@ -324,10 +324,10 @@ invalid:
 	}
 
 	if (kenv(KENV_GET, "init_script", kenv_value, sizeof(kenv_value)) > 0) {
-		state_func_t next_transition;
+		state_t next_transition;
 
 		if ((next_transition = run_script(kenv_value)) != NULL)
-			initial_transition = (state_t) next_transition;
+			initial_transition = next_transition;
 	}
 
 	if (kenv(KENV_GET, "init_chroot", kenv_value, sizeof(kenv_value)) > 0) {
@@ -1024,11 +1024,11 @@ single_user(void)
 static state_func_t
 runcom(void)
 {
-	state_func_t next_transition;
+	state_t next_transition;
 
 	BOOTTRACE("/etc/rc starting...");
 	if ((next_transition = run_script(_PATH_RUNCOM)) != NULL)
-		return next_transition;
+		return (state_func_t) next_transition;
 	BOOTTRACE("/etc/rc finished");
 
 	runcom_mode = AUTOBOOT;		/* the default */
@@ -1108,7 +1108,7 @@ replace_init(char *path)
  *    terminated with a signal or exit code != 0.
  *  - death_single if a SIGTERM was delivered to init(8).
  */
-static state_func_t
+static state_t
 run_script(const char *script)
 {
 	pid_t pid, wpid;
@@ -1136,7 +1136,7 @@ run_script(const char *script)
 		while (waitpid(-1, (int *) 0, WNOHANG) > 0)
 			continue;
 		sleep(STALL_TIMEOUT);
-		return (state_func_t) single_user;
+		return single_user;
 	}
 
 	/*
@@ -1148,13 +1148,13 @@ run_script(const char *script)
 			collect_child(wpid);
 		if (requested_transition == death_single ||
 		    requested_transition == reroot)
-			return (state_func_t) requested_transition;
+			return requested_transition;
 		if (wpid == -1) {
 			if (errno == EINTR)
 				continue;
 			warning("wait for %s on %s failed: %m; going to "
 			    "single user mode", shell, script);
-			return (state_func_t) single_user;
+			return single_user;
 		}
 		if (wpid == pid && WIFSTOPPED(status)) {
 			warning("init: %s on %s stopped, restarting\n",
@@ -1177,13 +1177,13 @@ run_script(const char *script)
 	if (!WIFEXITED(status)) {
 		warning("%s on %s terminated abnormally, going to single "
 		    "user mode", shell, script);
-		return (state_func_t) single_user;
+		return single_user;
 	}
 
 	if (WEXITSTATUS(status))
-		return (state_func_t) single_user;
+		return single_user;
 
-	return (state_func_t) 0;
+	return (state_t) 0;
 }
 
 /*
